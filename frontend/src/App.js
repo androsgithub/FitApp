@@ -78,7 +78,60 @@ function App() {
   }, [setClients]);
 
   if (!session) {
-    return <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} />;
+    return (
+      <>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh'
+          }}
+        >
+          <Auth
+            supabaseClient={supabase}
+            appearance={{ theme: ThemeSupa }}
+            providers={[]}
+            localization={{
+              variables: {
+                sign_in: {
+                  email_label: 'E-mail',
+                  password_label: 'Senha',
+                  button_label: 'Entrar',
+                  loading_button_label: 'Entrando...',
+                  link_text: 'Não tem uma conta? Cadastre-se',
+                  email_input_placeholder: 'Seu endereço de e-mail',
+                  password_input_placeholder: 'Sua senha',
+                  social_provider_text: 'Entrar com {{provider}}'
+                },
+                sign_up: {
+                  email_label: 'E-mail',
+                  password_label: 'Senha',
+                  button_label: 'Cadastrar',
+                  loading_button_label: 'Cadastrando...',
+                  link_text: 'Já tem uma conta? Entrar',
+                  email_input_placeholder: 'Seu endereço de e-mail',
+                  password_input_placeholder: 'Sua senha',
+                  social_provider_text: 'Cadastrar com {{provider}}'
+                },
+                forgotten_password: {
+                  link_text: 'Esqueceu sua senha?',
+                  button_label: 'Enviar link de recuperação',
+                  email_label: 'E-mail',
+                  email_input_placeholder: 'Seu endereço de e-mail'
+                },
+                magic_link: {
+                  button_label: 'Enviar link mágico',
+                  loading_button_label: 'Enviando link...',
+                  email_input_placeholder: 'Seu endereço de e-mail'
+                }
+              }
+            }}
+          />
+        </div>
+        <GlobalStyle />
+      </>
+    );
   } else {
     return (
       <>
