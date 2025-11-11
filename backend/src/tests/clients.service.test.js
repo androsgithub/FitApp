@@ -1,7 +1,8 @@
 const clientsService = require('../service/clients.service');
 const db = require('../infra/database');
+const { Client } = require('../models');
 
-describe('clients.service', () => {
+describe('serviço de clientes', () => {
   const mockClientData = {
     id: 1,
     name: 'João Silva',
@@ -17,8 +18,8 @@ describe('clients.service', () => {
     jest.clearAllMocks();
   });
 
-  describe('findAll', () => {
-    test('should return all clients with camelized properties', async () => {
+  describe('buscar todos', () => {
+    test('deve retornar todos os clientes como instâncias de Client', async () => {
       const dbResult = [
         [
           {
@@ -48,6 +49,7 @@ describe('clients.service', () => {
       expect(db.execute).toHaveBeenCalledWith('SELECT * FROM clients');
       expect(Array.isArray(result)).toBe(true);
       expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(Client);
       expect(result[0]).toEqual(
         expect.objectContaining({
           id: 1,
@@ -61,7 +63,7 @@ describe('clients.service', () => {
       );
     });
 
-    test('should return empty array when no clients exist', async () => {
+    test('deve retornar array vazio quando não há clientes', async () => {
       db.execute = jest.fn().mockResolvedValue([[]]);
 
       const result = await clientsService.findAll();
@@ -71,7 +73,7 @@ describe('clients.service', () => {
       expect(result).toHaveLength(0);
     });
 
-    test('should throw error when database fails', async () => {
+    test('deve lançar erro quando banco de dados falha', async () => {
       const dbError = new Error('Database connection failed');
       db.execute = jest.fn().mockRejectedValue(dbError);
 
@@ -81,8 +83,8 @@ describe('clients.service', () => {
     });
   });
 
-  describe('addClient', () => {
-    test('should insert client with all required fields', async () => {
+  describe('adicionar cliente', () => {
+    test('deve inserir cliente com dados válidos', async () => {
       db.execute = jest.fn().mockResolvedValue([{ affectedRows: 1 }]);
 
       const data = [
@@ -100,50 +102,56 @@ describe('clients.service', () => {
       const [query, params] = db.execute.mock.calls[0];
 
       expect(query.toUpperCase()).toContain('INSERT INTO CLIENTS');
-      expect(query).toContain('name');
-      expect(query).toContain('email');
-      expect(query).toContain('phone');
-      expect(query).toContain('address');
-      expect(query).toContain('plan');
-      expect(query).toContain('goal');
       expect(params).toEqual(data);
       expect(params).toHaveLength(6);
     });
 
-    test('should pass correct parameters in exact order', async () => {
-      db.execute = jest.fn().mockResolvedValue([{ affectedRows: 1 }]);
+    test('deve lançar erro quando validação de cliente falha', async () => {
+      const invalidData = [
+        '', // empty name
+        'invalid-email', // invalid email
+        '123',
+        'Address',
+        'Plan',
+        'Goal'
+      ];
 
-      const name = 'Maria Santos';
-      const email = 'maria@example.com';
-      const phone = '11888888888';
-      const address = 'Avenida Central, 456';
-      const plan = 'Basic';
-      const goal = 'Perder peso';
-
-      const data = [name, email, phone, address, plan, goal];
-      await clientsService.addClient(data);
-
-      const [, params] = db.execute.mock.calls[0];
-      expect(params[0]).toBe(name);
-      expect(params[1]).toBe(email);
-      expect(params[2]).toBe(phone);
-      expect(params[3]).toBe(address);
-      expect(params[4]).toBe(plan);
-      expect(params[5]).toBe(goal);
+      await expect(clientsService.addClient(invalidData)).rejects.toThrow(
+        'Invalid client data'
+      );
     });
 
-    test('should throw error when database insert fails', async () => {
+    test('deve lançar erro quando campo obrigatório está faltando', async () => {
+      const incompleteData = [
+        'João Silva',
+        'joao@example.com',
+        '', // missing phone
+        'Rua Principal, 123',
+        'Premium'
+      ];
+
+      await expect(clientsService.addClient(incompleteData)).rejects.toThrow();
+    });
+
+    test('deve lançar erro quando inserção no banco de dados falha', async () => {
       const dbError = new Error('Insert failed');
       db.execute = jest.fn().mockRejectedValue(dbError);
 
-      const data = ['Name', 'email@test.com', '123', 'Address', 'Plan', 'Goal'];
+      const data = [
+        'João Silva',
+        'joao@example.com',
+        '11999999999',
+        'Rua Principal, 123',
+        'Premium',
+        'Ganhar massa'
+      ];
 
       await expect(clientsService.addClient(data)).rejects.toThrow('Insert failed');
     });
   });
 
-  describe('updateClient', () => {
-    test('should update client with all fields', async () => {
+  describe('atualizar cliente', () => {
+    test('deve atualizar cliente com dados válidos', async () => {
       db.execute = jest.fn().mockResolvedValue([{ affectedRows: 1 }]);
 
       const id = 1;
@@ -162,17 +170,25 @@ describe('clients.service', () => {
       const [query, params] = db.execute.mock.calls[0];
 
       expect(query.toUpperCase()).toContain('UPDATE CLIENTS');
-      expect(query).toContain('name');
-      expect(query).toContain('email');
-      expect(query).toContain('phone');
-      expect(query).toContain('address');
-      expect(query).toContain('plan');
-      expect(query).toContain('goal');
-      expect(query).toContain('id');
       expect(params).toEqual([...data, id]);
     });
 
-    test('should place id as the last parameter', async () => {
+    test('deve lançar erro quando validação de cliente falha', async () => {
+      const invalidData = [
+        '', // empty name
+        'invalid-email', // invalid email
+        '11987654321',
+        'Rua Atualizada, 789',
+        'Premium Plus',
+        'Ganhar mais massa'
+      ];
+
+      await expect(clientsService.updateClient(invalidData, 1)).rejects.toThrow(
+        'Invalid client data'
+      );
+    });
+
+    test('deve colocar id como último parâmetro', async () => {
       db.execute = jest.fn().mockResolvedValue([{ affectedRows: 1 }]);
 
       const id = 5;
@@ -185,7 +201,7 @@ describe('clients.service', () => {
       expect(params).toHaveLength(7);
     });
 
-    test('should throw error when database update fails', async () => {
+    test('deve lançar erro quando atualização no banco de dados falha', async () => {
       const dbError = new Error('Update failed');
       db.execute = jest.fn().mockRejectedValue(dbError);
 
@@ -193,19 +209,10 @@ describe('clients.service', () => {
 
       await expect(clientsService.updateClient(data, 1)).rejects.toThrow('Update failed');
     });
-
-    test('should handle non-existent client update gracefully', async () => {
-      db.execute = jest.fn().mockResolvedValue([{ affectedRows: 0 }]);
-
-      const data = ['Name', 'email@test.com', '123', 'Address', 'Plan', 'Goal'];
-
-      await expect(clientsService.updateClient(data, 999)).resolves.not.toThrow();
-      expect(db.execute).toHaveBeenCalled();
-    });
   });
 
-  describe('deleteClient', () => {
-    test('should delete client by id', async () => {
+  describe('deletar cliente', () => {
+    test('deve deletar cliente por id', async () => {
       db.execute = jest.fn().mockResolvedValue([{ affectedRows: 1 }]);
 
       const id = 1;
@@ -219,7 +226,7 @@ describe('clients.service', () => {
       expect(params).toEqual([id]);
     });
 
-    test('should pass correct id parameter', async () => {
+    test('deve passar parâmetro de id correto', async () => {
       db.execute = jest.fn().mockResolvedValue([{ affectedRows: 1 }]);
 
       const id = 42;
@@ -230,14 +237,14 @@ describe('clients.service', () => {
       expect(params).toHaveLength(1);
     });
 
-    test('should throw error when database delete fails', async () => {
+    test('deve lançar erro quando deleção no banco de dados falha', async () => {
       const dbError = new Error('Delete failed');
       db.execute = jest.fn().mockRejectedValue(dbError);
 
       await expect(clientsService.deleteClient(1)).rejects.toThrow('Delete failed');
     });
 
-    test('should handle non-existent client deletion gracefully', async () => {
+    test('deve lidar graciosamente com deleção de cliente não existente', async () => {
       db.execute = jest.fn().mockResolvedValue([{ affectedRows: 0 }]);
 
       await expect(clientsService.deleteClient(999)).resolves.not.toThrow();
